@@ -13,9 +13,23 @@ import java.util.Map;
 
 import java.time.ZoneId;
 
+/**
+ * Manejador global de excepciones para todos los controladores REST.
+ *
+ * <p>Intercepta las excepciones del dominio y las convierte en respuestas HTTP
+ * estructuradas con los campos: {@code timestamp}, {@code status}, {@code error}
+ * y {@code message}. La marca temporal se genera con la zona horaria
+ * {@value GlobalConstants#ZONE_ID}.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * Maneja {@link ResourceNotFoundException} y devuelve {@code 404 Not Found}.
+     *
+     * @param ex excepción capturada
+     * @return respuesta con detalle del recurso no encontrado
+     */
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFoundException(ResourceNotFoundException ex) {
         Map<String, Object> errorResponse = new HashMap<>();
@@ -27,6 +41,12 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
+    /**
+     * Maneja {@link BusinessLogicException} y devuelve {@code 409 Conflict}.
+     *
+     * @param ex excepción capturada
+     * @return respuesta con detalle de la violación de negocio
+     */
     @ExceptionHandler(BusinessLogicException.class)
     public ResponseEntity<Map<String, Object>> handleBusinessLogicException(BusinessLogicException ex) {
         Map<String, Object> errorResponse = new HashMap<>();
@@ -38,6 +58,12 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
     }
 
+    /**
+     * Maneja {@link ValidationException} y devuelve {@code 400 Bad Request}.
+     *
+     * @param ex excepción capturada
+     * @return respuesta con detalle del error de validación
+     */
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<Map<String, Object>> handleValidationException(ValidationException ex) {
         Map<String, Object> errorResponse = new HashMap<>();
@@ -49,6 +75,12 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
+    /**
+     * Captura cualquier excepción no controlada y devuelve {@code 500 Internal Server Error}.
+     *
+     * @param ex excepción capturada
+     * @return respuesta genérica de error interno del servidor
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGlobalException(Exception ex) {
         Map<String, Object> errorResponse = new HashMap<>();

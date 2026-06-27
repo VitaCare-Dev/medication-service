@@ -14,15 +14,33 @@ import com.grupo10.medication_service.constants.GlobalConstants;
 
 import java.util.List;
 
+/**
+ * Servicio de negocio para la gestión de tratamientos farmacológicos.
+ *
+ * <p>Centraliza la lógica de validación, creación, consulta, desactivación y
+ * eliminación de medicamentos. Delega la persistencia en {@link MedicationRepository}
+ * y aplica reglas de negocio antes de cada operación de escritura.
+ */
 @Service
 @RequiredArgsConstructor
 public class MedicationService {
 
     private final MedicationRepository medicationRepository;
 
+    /**
+     * Crea y persiste un nuevo tratamiento farmacológico.
+     *
+     * <p>Valida los datos de entrada antes de guardar. Si algún campo
+     * obligatorio falta o contiene un valor inválido se lanza una excepción
+     * antes de acceder a la base de datos.
+     *
+     * @param requestDto datos del tratamiento a registrar
+     * @return representación del tratamiento recién creado, incluyendo el ID asignado
+     * @throws ValidationException     si algún campo obligatorio es nulo, vacío o tiene valor inválido
+     * @throws BusinessLogicException  si la fecha de término es anterior a la fecha de inicio
+     */
     @Transactional
     public MedicationResponseDto createTreatment(MedicationRequestDto requestDto) {
-        // Validaciones
         validateMedicationRequest(requestDto);
 
         Medication medication = new Medication();
@@ -38,6 +56,13 @@ public class MedicationService {
         return mapToResponseDto(savedMedication);
     }
 
+    /**
+     * Obtiene un tratamiento por su identificador único.
+     *
+     * @param id identificador del tratamiento
+     * @return datos del tratamiento encontrado
+     * @throws ResourceNotFoundException si no existe un tratamiento con el ID indicado
+     */
     @Transactional(readOnly = true)
     public MedicationResponseDto getMedicationById(Long id) {
         Medication medication = medicationRepository.findById(id)
@@ -45,6 +70,13 @@ public class MedicationService {
         return mapToResponseDto(medication);
     }
 
+    /**
+     * Obtiene todos los tratamientos registrados para un paciente,
+     * sin filtrar por estado activo o inactivo.
+     *
+     * @param idPaciente identificador del paciente
+     * @return lista de tratamientos del paciente; vacía si no tiene registros
+     */
     @Transactional(readOnly = true)
     public List<MedicationResponseDto> getMedicationsByPatientId(Long idPaciente) {
         return medicationRepository.findByIdPaciente(idPaciente).stream()
@@ -52,6 +84,12 @@ public class MedicationService {
                 .toList();
     }
 
+    /**
+     * Obtiene únicamente los tratamientos activos de un paciente.
+     *
+     * @param idPaciente identificador del paciente
+     * @return lista de tratamientos con estado {@code activo = 1}; vacía si no existen
+     */
     @Transactional(readOnly = true)
     public List<MedicationResponseDto> getActiveMedicationsByPatientId(Long idPaciente) {
         return medicationRepository.findByIdPacienteAndActivo(idPaciente, 1).stream()
@@ -59,6 +97,12 @@ public class MedicationService {
                 .toList();
     }
 
+    /**
+     * Elimina permanentemente un tratamiento de la base de datos.
+     *
+     * @param id identificador del tratamiento a eliminar
+     * @throws ResourceNotFoundException si no existe un tratamiento con el ID indicado
+     */
     @Transactional
     public void deleteMedication(Long id) {
         if (!medicationRepository.existsById(id)) {
@@ -67,12 +111,21 @@ public class MedicationService {
         medicationRepository.deleteById(id);
     }
 
+    /**
+     * Desactiva un tratamiento estableciendo su estado a {@code 0}.
+     *
+     * <p>No elimina el registro; permite mantener el historial del tratamiento.
+     *
+     * @param id identificador del tratamiento a desactivar
+     * @return datos actualizados del tratamiento con estado {@code activo = 0}
+     * @throws ResourceNotFoundException si no existe un tratamiento con el ID indicado
+     * @throws BusinessLogicException    si el tratamiento ya se encuentra inactivo
+     */
     @Transactional
     public MedicationResponseDto deactivateMedication(Long id) {
         Medication medication = medicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(GlobalConstants.MEDICATION, "id", id));
 
-        // Validación de lógica de negocio
         if (medication.getActivo() == 0) {
             throw new BusinessLogicException("El medicamento con ID " + id + " ya está inactivo");
         }
@@ -83,7 +136,11 @@ public class MedicationService {
     }
 
     /**
-     * Valida los datos de entrada para crear o actualizar un medicamento
+     * Valida los campos obligatorios y las reglas de negocio del DTO de entrada.
+     *
+     * @param requestDto datos a validar
+     * @throws ValidationException    si un campo obligatorio es nulo, vacío o tiene valor inválido
+     * @throws BusinessLogicException si la fecha de término es anterior a la fecha de inicio
      */
     private void validateMedicationRequest(MedicationRequestDto requestDto) {
         if (requestDto.getIdPaciente() == null) {
@@ -106,13 +163,18 @@ public class MedicationService {
             throw new ValidationException("fechaInicio", "no puede ser nula");
         }
 
-        // Validar que fecha de término sea posterior a fecha de inicio
         if (requestDto.getFechaTermino() != null &&
                 requestDto.getFechaTermino().isBefore(requestDto.getFechaInicio())) {
             throw new BusinessLogicException("La fecha de término no puede ser anterior a la fecha de inicio");
         }
     }
 
+    /**
+     * Convierte una entidad {@link Medication} en su representación DTO de respuesta.
+     *
+     * @param medication entidad a convertir
+     * @return DTO con los datos del tratamiento
+     */
     private MedicationResponseDto mapToResponseDto(Medication medication) {
         MedicationResponseDto responseDto = new MedicationResponseDto();
         responseDto.setIdMedicamento(medication.getIdMedicamento());
